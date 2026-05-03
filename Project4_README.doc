@@ -1,0 +1,100 @@
+EMEA Content Statistical Model Refresh Pipeline
+Data Portfolio · Project 4
+Author: Jashwanth Anand Shankar — MSc Business Analytics, Warwick Business School
+Contact: jashwanth240298@gmail.com · linkedin.com/in/jash24298
+---
+The Problem This Solves
+In a production finance analytics environment, source data is updated regularly —
+new productions are added, budget figures are corrected, ratings are revised.
+Before this pipeline: Every update required a manual re-analysis cycle:
+re-load the data, re-clean it, re-run all statistical models, re-generate all reports.
+This took approximately 4 hours per refresh cycle and required senior analyst time.
+After this pipeline: A single command detects whether the data has changed
+and, if so, automatically runs the full pipeline end-to-end — in under 2 minutes.
+```bash
+python emea_stat_refresh.py --source emea_content_data.csv
+```
+---
+What the Pipeline Does
+```
+Source CSV
+    │
+    ├─► 1. Change Detection      MD5 hash comparison — only runs if data changed
+    │
+    ├─► 2. Ingestion & Validation  Schema check, value range validation, quality flags
+    │
+    ├─► 3. Cleaning & Imputation   Country-year median imputation for missing budgets
+    │
+    ├─► 4. Statistical Models      CAGR · Linear trend regression · Genre scoring · YoY matrix
+    │
+    └─► 5. Output Generation       CSVs + plain-text summary + JSON audit log
+```
+---
+Statistical Models Computed
+Model	Method	Business use
+Market summary	Group aggregation	Spend oversight ranking
+CAGR by market	Compound growth formula	Identify fastest-growing markets
+Trend regression	Scipy linregress (OLS)	Detect stable vs volatile output trends
+Genre performance	Rating × log(audience)	Content investment prioritisation
+YoY growth matrix	Pandas pct_change + pivot	Year-on-year reporting for PR/GR teams
+---
+Installation
+```bash
+pip install -r requirements.txt
+```
+---
+Usage
+```bash
+# Standard run — only refreshes if data has changed
+python emea_stat_refresh.py --source emea_content_data.csv
+
+# Force re-run regardless of change detection
+python emea_stat_refresh.py --source emea_content_data.csv --force
+
+# Custom output directory
+python emea_stat_refresh.py --source emea_content_data.csv --output /reports/emea/
+```
+---
+Output Files
+After each successful run, the following are written to the output directory:
+File	Description
+`market_summary.csv`	Spend, productions, rating per EMEA market
+`cagr_by_market.csv`	Compound annual growth rate per market
+`trend_regression.csv`	OLS slope, R², p-value per market
+`genre_performance.csv`	Composite performance score per genre
+`yoy_growth_matrix.csv`	Year-on-year % change, all markets × all years
+`refresh_summary.txt`	Plain-English summary for non-technical stakeholders
+`refresh_log.json`	Audit trail: timestamp, source hash, output files
+---
+Onboarding a New Team Member
+Clone/download this repository
+Run `pip install -r requirements.txt`
+Place your source CSV in the project directory
+Run the pipeline with `python emea_stat_refresh.py --source <your_file.csv>`
+Find all outputs in the `outputs/` folder
+Read `outputs/refresh_summary.txt` for a plain-English interpretation
+No manual steps. No configuration files to edit. No analyst hand-holding required.
+---
+Project Background
+This script is a simplified, anonymised recreation of an automation built at
+Stellantis to eliminate manual statistical re-analysis when plant-side design
+or manufacturing process data was updated. The original reduced a 4-hour
+manual cycle to a fully automated sub-2-minute pipeline and was used to
+onboard 5 new team members without requiring analyst support.
+---
+File Structure
+```
+project4/
+├── emea_stat_refresh.py    Main pipeline script
+├── requirements.txt        Python dependencies
+├── README.md               This file
+└── outputs/                Generated on first run
+    ├── market_summary.csv
+    ├── cagr_by_market.csv
+    ├── trend_regression.csv
+    ├── genre_performance.csv
+    ├── yoy_growth_matrix.csv
+    ├── refresh_summary.txt
+    ├── refresh_log.json
+    └── .source_hash.json   (internal — change detection)
+```

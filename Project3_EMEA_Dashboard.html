@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMEA Content Production Finance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;font-size:13px}
+
+  /* HEADER */
+  .header{background:#1a1a2e;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:16px;font-weight:600;letter-spacing:.02em}
+  .header .sub{font-size:11px;color:#a0aec0;margin-top:2px}
+  .header .badge{background:#e53e3e;color:#fff;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700}
+
+  /* FILTER BAR */
+  .filters{background:#fff;padding:10px 24px;display:flex;gap:16px;align-items:center;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+  .filters label{font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .filters select{border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;color:#1a1a2e;background:#f7fafc;cursor:pointer;outline:none}
+  .filters select:focus{border-color:#1a1a2e}
+  .filter-group{display:flex;align-items:center;gap:8px}
+
+  /* KPI STRIP */
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px}
+  .kpi{background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .kpi .label{font-size:10px;color:#718096;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+  .kpi .value{font-size:22px;font-weight:700;color:#1a1a2e;margin:4px 0 2px}
+  .kpi .delta{font-size:11px;color:#2d6a4f;font-weight:600}
+  .kpi .delta.neg{color:#c53030}
+
+  /* MAIN GRID */
+  .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;padding:0 24px 12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 24px 20px}
+
+  /* PANELS */
+  .panel{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .panel-title{font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #f0f2f5;display:flex;justify-content:space-between;align-items:center}
+  .panel-title .note{font-size:10px;color:#a0aec0;font-weight:400}
+  canvas{max-height:240px}
+
+  /* TABLE */
+  .tbl{width:100%;border-collapse:collapse;font-size:11px}
+  .tbl th{background:#f7fafc;padding:6px 10px;text-align:left;font-weight:600;color:#4a5568;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e2e8f0}
+  .tbl td{padding:6px 10px;border-bottom:1px solid #f7fafc;color:#2d3748}
+  .tbl tr:hover td{background:#fafafa}
+  .rank-badge{display:inline-block;width:18px;height:18px;border-radius:50%;background:#1a1a2e;color:#fff;text-align:center;line-height:18px;font-size:9px;font-weight:700}
+  .bar-cell{display:flex;align-items:center;gap:6px}
+  .mini-bar{height:6px;border-radius:3px;background:#1a1a2e;min-width:2px}
+
+  /* FOOTER */
+  .footer{text-align:center;padding:10px;color:#a0aec0;font-size:10px;border-top:1px solid #e2e8f0;background:#fff}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="h1" style="font-size:16px;font-weight:600;color:#fff">EMEA Content Production Finance Dashboard</div>
+    <div class="sub">Location Spend · Output Volume · Quality Rating · Market Trend | 2015–2023</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-size:11px;color:#a0aec0">Portfolio Project 3 · Jashwanth Anand Shankar</div>
+    <div class="badge">LIVE FILTERS</div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="filter-group">
+    <label>Region</label>
+    <select id="f-region" onchange="applyFilters()">
+      <option value="all">All Regions</option>
+      <option value="Northern Europe">Northern Europe</option>
+      <option value="Western Europe">Western Europe</option>
+      <option value="Southern Europe">Southern Europe</option>
+      <option value="Eastern Europe">Eastern Europe</option>
+      <option value="Africa">Africa</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Year Range</label>
+    <select id="f-year-from" onchange="applyFilters()"></select>
+    <span style="color:#a0aec0">to</span>
+    <select id="f-year-to" onchange="applyFilters()"></select>
+  </div>
+  <div class="filter-group">
+    <label>Genre</label>
+    <select id="f-genre" onchange="applyFilters()">
+      <option value="all">All Genres</option>
+    </select>
+  </div>
+  <div style="margin-left:auto;font-size:11px;color:#718096" id="filter-summary">Showing all data</div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-strip">
+  <div class="kpi">
+    <div class="label">Total Productions</div>
+    <div class="value" id="kpi-prod">-</div>
+    <div class="delta" id="kpi-prod-d">across all markets</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Estimated Location Spend</div>
+    <div class="value" id="kpi-spend">-</div>
+    <div class="delta" id="kpi-spend-d">GBP M (proxy)</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Avg Content Rating</div>
+    <div class="value" id="kpi-rating">-</div>
+    <div class="delta" id="kpi-rating-d">out of 10</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Markets Active</div>
+    <div class="value" id="kpi-markets">-</div>
+    <div class="delta" id="kpi-markets-d">EMEA countries</div>
+  </div>
+</div>
+
+<!-- ROW 1: Trend + Market Table -->
+<div class="grid">
+  <div class="panel">
+    <div class="panel-title">
+      Production Output Trend by Market
+      <span class="note">Annual count · top 6 by total volume</span>
+    </div>
+    <canvas id="chart-trend"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">
+      Market Priority Ranking
+      <span class="note">By spend volume</span>
+    </div>
+    <div style="overflow-y:auto;max-height:252px">
+      <table class="tbl" id="market-table">
+        <thead><tr>
+          <th>#</th><th>Market</th><th>Productions</th>
+          <th>Spend (GBP M)</th><th>Avg Rating</th><th>Volume</th>
+        </tr></thead>
+        <tbody id="market-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 2: Location spend bar + Genre radar + Quality scatter -->
+<div class="grid2">
+  <div class="panel">
+    <div class="panel-title">
+      Location Spend by Market
+      <span class="note">GBP M proxy</span>
+    </div>
+    <canvas id="chart-spend"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">
+      Genre Performance Score
+      <span class="note">Rating × log(audience)</span>
+    </div>
+    <canvas id="chart-genre"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">
+      Spend vs. Quality
+      <span class="note">Bubble = production count</span>
+    </div>
+    <canvas id="chart-scatter"></canvas>
+  </div>
+</div>
+
+<div class="footer">
+  Data Portfolio Project 3 · EMEA Content Production Finance Dashboard ·
+  Jashwanth Anand Shankar · MSc Business Analytics, Warwick Business School ·
+  Tools: Chart.js, Python, pandas
+</div>
+
+<script>
+// ── EMBED DATA ──────────────────────────────────────────────────────────────
+const RAW = {"markets": [{"country_name": "Norway", "country_code": "NO", "productions": 315, "total_spend": 1230.68, "avg_rating": 7.17, "total_audience": 1315.17}, {"country_name": "United Kingdom", "country_code": "GB", "productions": 287, "total_spend": 1169.68, "avg_rating": 7.38, "total_audience": 1221.81}, {"country_name": "Netherlands", "country_code": "NL", "productions": 277, "total_spend": 1056.7, "avg_rating": 7.18, "total_audience": 1226.58}, {"country_name": "France", "country_code": "FR", "productions": 282, "total_spend": 1047.89, "avg_rating": 7.27, "total_audience": 1290.69}, {"country_name": "Germany", "country_code": "DE", "productions": 262, "total_spend": 993.12, "avg_rating": 7.23, "total_audience": 1067.79}, {"country_name": "Ireland", "country_code": "IE", "productions": 276, "total_spend": 987.2, "avg_rating": 7.3, "total_audience": 1117.45}, {"country_name": "Sweden", "country_code": "SE", "productions": 294, "total_spend": 952.36, "avg_rating": 7.26, "total_audience": 1149.46}, {"country_name": "Austria", "country_code": "AT", "productions": 269, "total_spend": 946.51, "avg_rating": 7.25, "total_audience": 1093.33}, {"country_name": "Denmark", "country_code": "DK", "productions": 249, "total_spend": 946.14, "avg_rating": 7.31, "total_audience": 1061.69}, {"country_name": "Spain", "country_code": "ES", "productions": 266, "total_spend": 854.16, "avg_rating": 7.06, "total_audience": 1046.0}, {"country_name": "Belgium", "country_code": "BE", "productions": 261, "total_spend": 851.12, "avg_rating": 7.25, "total_audience": 1138.57}, {"country_name": "Italy", "country_code": "IT", "productions": 258, "total_spend": 813.88, "avg_rating": 7.19, "total_audience": 964.41}, {"country_name": "Portugal", "country_code": "PT", "productions": 241, "total_spend": 609.67, "avg_rating": 7.06, "total_audience": 811.17}, {"country_name": "Poland", "country_code": "PL", "productions": 217, "total_spend": 569.85, "avg_rating": 7.06, "total_audience": 739.83}, {"country_name": "South Africa", "country_code": "ZA", "productions": 228, "total_spend": 490.4, "avg_rating": 7.17, "total_audience": 687.96}, {"country_name": "Nigeria", "country_code": "NG", "productions": 185, "total_spend": 280.2, "avg_rating": 7.03, "total_audience": 513.37}], "annual": [{"country_name": "Austria", "year": 2015, "productions": 22, "spend": 54.58, "rating": 7.4}, {"country_name": "Austria", "year": 2016, "productions": 19, "spend": 59.75, "rating": 7.32}, {"country_name": "Austria", "year": 2017, "productions": 27, "spend": 87.05, "rating": 7.15}, {"country_name": "Austria", "year": 2018, "productions": 33, "spend": 135.03, "rating": 7.49}, {"country_name": "Austria", "year": 2019, "productions": 28, "spend": 96.82, "rating": 7.14}, {"country_name": "Austria", "year": 2020, "productions": 25, "spend": 74.63, "rating": 7.12}, {"country_name": "Austria", "year": 2021, "productions": 39, "spend": 150.64, "rating": 7.32}, {"country_name": "Austria", "year": 2022, "productions": 38, "spend": 142.3, "rating": 7.29}, {"country_name": "Austria", "year": 2023, "productions": 38, "spend": 145.71, "rating": 7.06}, {"country_name": "Belgium", "year": 2015, "productions": 3, "spend": 8.15, "rating": 7.47}, {"country_name": "Belgium", "year": 2016, "productions": 28, "spend": 77.72, "rating": 7.15}, {"country_name": "Belgium", "year": 2017, "productions": 18, "spend": 58.17, "rating": 7.62}, {"country_name": "Belgium", "year": 2018, "productions": 21, "spend": 66.82, "rating": 7.03}, {"country_name": "Belgium", "year": 2019, "productions": 34, "spend": 93.75, "rating": 7.44}, {"country_name": "Belgium", "year": 2020, "productions": 32, "spend": 115.95, "rating": 6.93}, {"country_name": "Belgium", "year": 2021, "productions": 40, "spend": 141.83, "rating": 7.35}, {"country_name": "Belgium", "year": 2022, "productions": 46, "spend": 130.12, "rating": 7.23}, {"country_name": "Belgium", "year": 2023, "productions": 39, "spend": 158.6, "rating": 7.24}, {"country_name": "Denmark", "year": 2015, "productions": 31, "spend": 89.55, "rating": 7.55}, {"country_name": "Denmark", "year": 2016, "productions": 11, "spend": 44.42, "rating": 7.49}, {"country_name": "Denmark", "year": 2017, "productions": 18, "spend": 78.52, "rating": 7.16}, {"country_name": "Denmark", "year": 2018, "productions": 40, "spend": 171.13, "rating": 7.14}, {"country_name": "Denmark", "year": 2019, "productions": 25, "spend": 92.8, "rating": 7.2}, {"country_name": "Denmark", "year": 2020, "productions": 22, "spend": 80.65, "rating": 7.34}, {"country_name": "Denmark", "year": 2021, "productions": 36, "spend": 132.61, "rating": 7.44}, {"country_name": "Denmark", "year": 2022, "productions": 34, "spend": 124.92, "rating": 7.3}, {"country_name": "Denmark", "year": 2023, "productions": 32, "spend": 131.54, "rating": 7.28}, {"country_name": "France", "year": 2015, "productions": 32, "spend": 118.05, "rating": 7.37}, {"country_name": "France", "year": 2016, "productions": 28, "spend": 89.33, "rating": 6.92}, {"country_name": "France", "year": 2017, "productions": 20, "spend": 52.24, "rating": 6.91}, {"country_name": "France", "year": 2018, "productions": 31, "spend": 95.98, "rating": 7.22}, {"country_name": "France", "year": 2019, "productions": 29, "spend": 113.59, "rating": 7.5}, {"country_name": "France", "year": 2020, "productions": 35, "spend": 116.09, "rating": 7.33}, {"country_name": "France", "year": 2021, "productions": 29, "spend": 113.02, "rating": 7.29}, {"country_name": "France", "year": 2022, "productions": 32, "spend": 137.41, "rating": 7.28}, {"country_name": "France", "year": 2023, "productions": 46, "spend": 212.18, "rating": 7.4}, {"country_name": "Germany", "year": 2015, "productions": 11, "spend": 43.47, "rating": 7.88}, {"country_name": "Germany", "year": 2016, "productions": 25, "spend": 74.24, "rating": 7.14}, {"country_name": "Germany", "year": 2017, "productions": 35, "spend": 134.71, "rating": 7.29}, {"country_name": "Germany", "year": 2018, "productions": 22, "spend": 62.87, "rating": 7.1}, {"country_name": "Germany", "year": 2019, "productions": 25, "spend": 81.24, "rating": 7.18}, {"country_name": "Germany", "year": 2020, "productions": 37, "spend": 137.48, "rating": 7.53}, {"country_name": "Germany", "year": 2021, "productions": 30, "spend": 134.24, "rating": 6.8}, {"country_name": "Germany", "year": 2022, "productions": 37, "spend": 161.02, "rating": 7.36}, {"country_name": "Germany", "year": 2023, "productions": 40, "spend": 163.86, "rating": 7.07}, {"country_name": "Ireland", "year": 2015, "productions": 35, "spend": 104.64, "rating": 7.34}, {"country_name": "Ireland", "year": 2016, "productions": 20, "spend": 56.0, "rating": 7.02}, {"country_name": "Ireland", "year": 2017, "productions": 17, "spend": 69.0, "rating": 7.18}, {"country_name": "Ireland", "year": 2018, "productions": 36, "spend": 115.24, "rating": 7.46}, {"country_name": "Ireland", "year": 2019, "productions": 28, "spend": 87.84, "rating": 7.43}, {"country_name": "Ireland", "year": 2020, "productions": 40, "spend": 145.83, "rating": 7.23}, {"country_name": "Ireland", "year": 2021, "productions": 39, "spend": 152.67, "rating": 7.1}, {"country_name": "Ireland", "year": 2022, "productions": 36, "spend": 129.84, "rating": 7.4}, {"country_name": "Ireland", "year": 2023, "productions": 25, "spend": 126.14, "rating": 7.48}, {"country_name": "Italy", "year": 2015, "productions": 21, "spend": 56.16, "rating": 7.32}, {"country_name": "Italy", "year": 2016, "productions": 12, "spend": 32.24, "rating": 7.22}, {"country_name": "Italy", "year": 2017, "productions": 25, "spend": 81.5, "rating": 7.17}, {"country_name": "Italy", "year": 2018, "productions": 28, "spend": 95.48, "rating": 7.34}, {"country_name": "Italy", "year": 2019, "productions": 36, "spend": 114.04, "rating": 7.04}, {"country_name": "Italy", "year": 2020, "productions": 40, "spend": 115.82, "rating": 7.36}, {"country_name": "Italy", "year": 2021, "productions": 38, "spend": 115.5, "rating": 6.94}, {"country_name": "Italy", "year": 2022, "productions": 25, "spend": 94.28, "rating": 7.17}, {"country_name": "Italy", "year": 2023, "productions": 33, "spend": 108.85, "rating": 7.28}, {"country_name": "Netherlands", "year": 2015, "productions": 19, "spend": 57.9, "rating": 7.4}, {"country_name": "Netherlands", "year": 2016, "productions": 18, "spend": 64.57, "rating": 6.65}, {"country_name": "Netherlands", "year": 2017, "productions": 22, "spend": 95.1, "rating": 6.72}, {"country_name": "Netherlands", "year": 2018, "productions": 24, "spend": 69.69, "rating": 6.97}, {"country_name": "Netherlands", "year": 2019, "productions": 49, "spend": 187.16, "rating": 7.28}, {"country_name": "Netherlands", "year": 2020, "productions": 18, "spend": 75.0, "rating": 6.77}, {"country_name": "Netherlands", "year": 2021, "productions": 49, "spend": 187.93, "rating": 7.3}, {"country_name": "Netherlands", "year": 2022, "productions": 31, "spend": 110.91, "rating": 7.44}, {"country_name": "Netherlands", "year": 2023, "productions": 47, "spend": 208.44, "rating": 7.4}, {"country_name": "Nigeria", "year": 2015, "productions": 23, "spend": 21.29, "rating": 6.72}, {"country_name": "Nigeria", "year": 2016, "productions": 26, "spend": 32.82, "rating": 6.98}, {"country_name": "Nigeria", "year": 2017, "productions": 25, "spend": 34.04, "rating": 6.76}, {"country_name": "Nigeria", "year": 2018, "productions": 24, "spend": 39.57, "rating": 7.12}, {"country_name": "Nigeria", "year": 2019, "productions": 18, "spend": 28.15, "rating": 7.53}, {"country_name": "Nigeria", "year": 2020, "productions": 22, "spend": 39.57, "rating": 7.21}, {"country_name": "Nigeria", "year": 2021, "productions": 8, "spend": 15.5, "rating": 7.28}, {"country_name": "Nigeria", "year": 2022, "productions": 23, "spend": 38.41, "rating": 6.52}, {"country_name": "Nigeria", "year": 2023, "productions": 16, "spend": 30.85, "rating": 7.6}, {"country_name": "Norway", "year": 2015, "productions": 20, "spend": 64.81, "rating": 7.33}, {"country_name": "Norway", "year": 2016, "productions": 35, "spend": 136.78, "rating": 7.13}, {"country_name": "Norway", "year": 2017, "productions": 31, "spend": 106.2, "rating": 7.16}, {"country_name": "Norway", "year": 2018, "productions": 15, "spend": 58.72, "rating": 6.85}, {"country_name": "Norway", "year": 2019, "productions": 35, "spend": 124.36, "rating": 7.11}, {"country_name": "Norway", "year": 2020, "productions": 43, "spend": 162.25, "rating": 7.16}, {"country_name": "Norway", "year": 2021, "productions": 35, "spend": 162.5, "rating": 7.16}, {"country_name": "Norway", "year": 2022, "productions": 54, "spend": 188.35, "rating": 6.95}, {"country_name": "Norway", "year": 2023, "productions": 47, "spend": 226.7, "rating": 7.54}, {"country_name": "Poland", "year": 2015, "productions": 19, "spend": 46.51, "rating": 7.16}, {"country_name": "Poland", "year": 2016, "productions": 28, "spend": 64.55, "rating": 6.84}, {"country_name": "Poland", "year": 2017, "productions": 10, "spend": 22.04, "rating": 6.8}, {"country_name": "Poland", "year": 2018, "productions": 28, "spend": 75.76, "rating": 7.12}, {"country_name": "Poland", "year": 2019, "productions": 29, "spend": 75.85, "rating": 7.19}, {"country_name": "Poland", "year": 2020, "productions": 26, "spend": 67.87, "rating": 7.31}, {"country_name": "Poland", "year": 2021, "productions": 32, "spend": 93.22, "rating": 7.14}, {"country_name": "Poland", "year": 2022, "productions": 19, "spend": 50.22, "rating": 6.97}, {"country_name": "Poland", "year": 2023, "productions": 26, "spend": 73.83, "rating": 6.86}, {"country_name": "Portugal", "year": 2015, "productions": 27, "spend": 58.62, "rating": 7.22}, {"country_name": "Portugal", "year": 2016, "productions": 14, "spend": 32.08, "rating": 7.1}, {"country_name": "Portugal", "year": 2017, "productions": 38, "spend": 104.21, "rating": 6.69}, {"country_name": "Portugal", "year": 2018, "productions": 17, "spend": 33.23, "rating": 7.49}, {"country_name": "Portugal", "year": 2019, "productions": 29, "spend": 77.33, "rating": 7.03}, {"country_name": "Portugal", "year": 2020, "productions": 31, "spend": 86.98, "rating": 7.36}, {"country_name": "Portugal", "year": 2021, "productions": 25, "spend": 59.03, "rating": 7.03}, {"country_name": "Portugal", "year": 2022, "productions": 35, "spend": 107.74, "rating": 6.93}, {"country_name": "Portugal", "year": 2023, "productions": 25, "spend": 50.45, "rating": 7.01}, {"country_name": "South Africa", "year": 2015, "productions": 21, "spend": 34.63, "rating": 6.98}, {"country_name": "South Africa", "year": 2016, "productions": 31, "spend": 63.05, "rating": 7.07}, {"country_name": "South Africa", "year": 2017, "productions": 28, "spend": 44.2, "rating": 7.32}, {"country_name": "South Africa", "year": 2018, "productions": 25, "spend": 41.25, "rating": 7.16}, {"country_name": "South Africa", "year": 2019, "productions": 21, "spend": 46.03, "rating": 7.0}, {"country_name": "South Africa", "year": 2020, "productions": 25, "spend": 66.6, "rating": 7.3}, {"country_name": "South Africa", "year": 2021, "productions": 27, "spend": 69.37, "rating": 7.12}, {"country_name": "South Africa", "year": 2022, "productions": 32, "spend": 77.19, "rating": 7.27}, {"country_name": "South Africa", "year": 2023, "productions": 18, "spend": 48.08, "rating": 7.29}, {"country_name": "Spain", "year": 2015, "productions": 29, "spend": 59.22, "rating": 7.14}, {"country_name": "Spain", "year": 2016, "productions": 22, "spend": 69.27, "rating": 7.32}, {"country_name": "Spain", "year": 2017, "productions": 29, "spend": 108.89, "rating": 6.93}, {"country_name": "Spain", "year": 2018, "productions": 26, "spend": 74.4, "rating": 7.07}, {"country_name": "Spain", "year": 2019, "productions": 26, "spend": 73.81, "rating": 7.09}, {"country_name": "Spain", "year": 2020, "productions": 30, "spend": 82.11, "rating": 7.13}, {"country_name": "Spain", "year": 2021, "productions": 32, "spend": 112.96, "rating": 7.0}, {"country_name": "Spain", "year": 2022, "productions": 31, "spend": 104.42, "rating": 6.99}, {"country_name": "Spain", "year": 2023, "productions": 41, "spend": 169.07, "rating": 6.98}, {"country_name": "Sweden", "year": 2015, "productions": 21, "spend": 57.44, "rating": 7.21}, {"country_name": "Sweden", "year": 2016, "productions": 28, "spend": 91.07, "rating": 7.21}, {"country_name": "Sweden", "year": 2017, "productions": 24, "spend": 69.68, "rating": 7.35}, {"country_name": "Sweden", "year": 2018, "productions": 29, "spend": 84.87, "rating": 7.01}, {"country_name": "Sweden", "year": 2019, "productions": 30, "spend": 100.1, "rating": 7.29}, {"country_name": "Sweden", "year": 2020, "productions": 34, "spend": 104.47, "rating": 7.5}, {"country_name": "Sweden", "year": 2021, "productions": 39, "spend": 137.16, "rating": 7.03}, {"country_name": "Sweden", "year": 2022, "productions": 44, "spend": 136.96, "rating": 7.32}, {"country_name": "Sweden", "year": 2023, "productions": 45, "spend": 170.61, "rating": 7.38}, {"country_name": "United Kingdom", "year": 2015, "productions": 18, "spend": 67.01, "rating": 6.91}, {"country_name": "United Kingdom", "year": 2016, "productions": 18, "spend": 68.39, "rating": 7.77}, {"country_name": "United Kingdom", "year": 2017, "productions": 28, "spend": 103.88, "rating": 7.42}, {"country_name": "United Kingdom", "year": 2018, "productions": 37, "spend": 138.09, "rating": 7.47}, {"country_name": "United Kingdom", "year": 2019, "productions": 34, "spend": 126.24, "rating": 7.2}, {"country_name": "United Kingdom", "year": 2020, "productions": 33, "spend": 130.66, "rating": 7.29}, {"country_name": "United Kingdom", "year": 2021, "productions": 42, "spend": 192.26, "rating": 7.37}, {"country_name": "United Kingdom", "year": 2022, "productions": 38, "spend": 161.04, "rating": 7.38}, {"country_name": "United Kingdom", "year": 2023, "productions": 39, "spend": 182.12, "rating": 7.51}], "genres": [{"genre": "Drama", "productions": 942, "spend": 3150.49, "rating": 7.19, "audience": 3623.82}, {"genre": "Comedy", "productions": 656, "spend": 2116.45, "rating": 7.26, "audience": 2684.59}, {"genre": "Thriller", "productions": 584, "spend": 1895.85, "rating": 7.18, "audience": 2342.44}, {"genre": "Documentary", "productions": 508, "spend": 1754.71, "rating": 7.19, "audience": 2055.89}, {"genre": "Action", "productions": 484, "spend": 1645.51, "rating": 7.15, "audience": 1919.79}, {"genre": "Romance", "productions": 393, "spend": 1241.48, "rating": 7.16, "audience": 1489.95}, {"genre": "Crime", "productions": 322, "spend": 1065.68, "rating": 7.36, "audience": 1280.3}, {"genre": "Biography", "productions": 278, "spend": 929.4, "rating": 7.22, "audience": 1048.5}], "regions": [{"region": "Africa", "year": 2015, "spend": 55.92}, {"region": "Africa", "year": 2016, "spend": 95.87}, {"region": "Africa", "year": 2017, "spend": 78.24}, {"region": "Africa", "year": 2018, "spend": 80.82}, {"region": "Africa", "year": 2019, "spend": 74.18}, {"region": "Africa", "year": 2020, "spend": 106.17}, {"region": "Africa", "year": 2021, "spend": 84.87}, {"region": "Africa", "year": 2022, "spend": 115.6}, {"region": "Africa", "year": 2023, "spend": 78.93}, {"region": "Eastern Europe", "year": 2015, "spend": 46.51}, {"region": "Eastern Europe", "year": 2016, "spend": 64.55}, {"region": "Eastern Europe", "year": 2017, "spend": 22.04}, {"region": "Eastern Europe", "year": 2018, "spend": 75.76}, {"region": "Eastern Europe", "year": 2019, "spend": 75.85}, {"region": "Eastern Europe", "year": 2020, "spend": 67.87}, {"region": "Eastern Europe", "year": 2021, "spend": 93.22}, {"region": "Eastern Europe", "year": 2022, "spend": 50.22}, {"region": "Eastern Europe", "year": 2023, "spend": 73.83}, {"region": "Northern Europe", "year": 2015, "spend": 383.46}, {"region": "Northern Europe", "year": 2016, "spend": 396.67}, {"region": "Northern Europe", "year": 2017, "spend": 427.28}, {"region": "Northern Europe", "year": 2018, "spend": 568.05}, {"region": "Northern Europe", "year": 2019, "spend": 531.34}, {"region": "Northern Europe", "year": 2020, "spend": 623.86}, {"region": "Northern Europe", "year": 2021, "spend": 777.2}, {"region": "Northern Europe", "year": 2022, "spend": 741.11}, {"region": "Northern Europe", "year": 2023, "spend": 837.1}, {"region": "Southern Europe", "year": 2015, "spend": 174.0}, {"region": "Southern Europe", "year": 2016, "spend": 133.59}, {"region": "Southern Europe", "year": 2017, "spend": 294.6}, {"region": "Southern Europe", "year": 2018, "spend": 203.11}, {"region": "Southern Europe", "year": 2019, "spend": 265.18}, {"region": "Southern Europe", "year": 2020, "spend": 284.91}, {"region": "Southern Europe", "year": 2021, "spend": 287.49}, {"region": "Southern Europe", "year": 2022, "spend": 306.45}, {"region": "Southern Europe", "year": 2023, "spend": 328.37}, {"region": "Western Europe", "year": 2015, "spend": 282.15}, {"region": "Western Europe", "year": 2016, "spend": 365.6}, {"region": "Western Europe", "year": 2017, "spend": 427.26}, {"region": "Western Europe", "year": 2018, "spend": 430.39}, {"region": "Western Europe", "year": 2019, "spend": 572.56}, {"region": "Western Europe", "year": 2020, "spend": 519.14}, {"region": "Western Europe", "year": 2021, "spend": 727.66}, {"region": "Western Europe", "year": 2022, "spend": 681.76}, {"region": "Western Europe", "year": 2023, "spend": 888.8}], "years": [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]};
+
+const PALETTE = [
+  "#1a1a2e","#16213e","#0f3460","#533483","#2d6a4f",
+  "#1b4332","#6a3d9a","#b15928","#e31a1c","#ff7f00",
+  "#33a02c","#1f78b4","#a6cee3","#fdbf6f","#cab2d6","#b2df8a"
+];
+
+// ── STATE ───────────────────────────────────────────────────────────────────
+let charts = {};
+
+// ── INIT FILTERS ────────────────────────────────────────────────────────────
+function initFilters() {
+  const years = RAW.years;
+  const yf = document.getElementById("f-year-from");
+  const yt = document.getElementById("f-year-to");
+  years.forEach(y => {
+    yf.innerHTML += `<option value="${y}">${y}</option>`;
+    yt.innerHTML += `<option value="${y}" ${y==years[years.length-1]?"selected":""}>${y}</option>`;
+  });
+  const genres = [...new Set(RAW.genres.map(g=>g.genre))].sort();
+  const gf = document.getElementById("f-genre");
+  genres.forEach(g => gf.innerHTML += `<option value="${g}">${g}</option>`);
+}
+
+// ── FILTER LOGIC ────────────────────────────────────────────────────────────
+function applyFilters() {
+  const region = document.getElementById("f-region").value;
+  const yFrom  = +document.getElementById("f-year-from").value;
+  const yTo    = +document.getElementById("f-year-to").value;
+  const genre  = document.getElementById("f-genre").value;
+
+  // Filter annual data
+  let annual = RAW.annual.filter(r => r.year >= yFrom && r.year <= yTo);
+  let markets = RAW.markets;
+  if (region !== "all") {
+    const inRegion = new Set(
+      RAW.markets
+        .filter(m => getRegion(m.country_code) === region)
+        .map(m => m.country_name)
+    );
+    annual  = annual.filter(r => inRegion.has(r.country_name));
+    markets = markets.filter(m => inRegion.has(m.country_name));
+  }
+
+  // Summary
+  const totProd  = annual.reduce((s,r)=>s+r.productions, 0);
+  const totSpend = annual.reduce((s,r)=>s+r.spend, 0);
+  const avgRat   = annual.reduce((s,r)=>s+r.rating*r.productions,0) / Math.max(totProd,1);
+  const nMkts    = new Set(annual.map(r=>r.country_name)).size;
+
+  document.getElementById("kpi-prod").textContent    = totProd.toLocaleString();
+  document.getElementById("kpi-spend").textContent   = "GBP " + totSpend.toFixed(0) + "M";
+  document.getElementById("kpi-rating").textContent  = avgRat.toFixed(2);
+  document.getElementById("kpi-markets").textContent = nMkts;
+
+  const parts = [];
+  if (region !== "all") parts.push(region);
+  if (yFrom || yTo)     parts.push(`${yFrom}-${yTo}`);
+  if (genre !== "all")  parts.push(genre);
+  document.getElementById("filter-summary").textContent =
+    parts.length ? "Filtered: " + parts.join(" · ") : "Showing all data";
+
+  updateCharts(annual, markets, yFrom, yTo);
+}
+
+function getRegion(code) {
+  const map = {
+    GB:"Northern Europe",SE:"Northern Europe",NO:"Northern Europe",DK:"Northern Europe",IE:"Northern Europe",
+    DE:"Western Europe",FR:"Western Europe",NL:"Western Europe",BE:"Western Europe",AT:"Western Europe",
+    IT:"Southern Europe",ES:"Southern Europe",PT:"Southern Europe",
+    PL:"Eastern Europe",
+    ZA:"Africa",NG:"Africa"
+  };
+  return map[code] || "Other";
+}
+
+// ── CHART HELPERS ───────────────────────────────────────────────────────────
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function updateCharts(annual, markets, yFrom, yTo) {
+  updateTrend(annual, yFrom, yTo);
+  updateMarketTable(markets);
+  updateSpend(markets);
+  updateGenre();
+  updateScatter(markets);
+}
+
+// TREND LINE CHART
+function updateTrend(annual, yFrom, yTo) {
+  destroyChart("trend");
+  const years = RAW.years.filter(y => y >= yFrom && y <= yTo);
+
+  // Top 6 markets by total productions in filtered set
+  const mkts = {};
+  annual.forEach(r => { mkts[r.country_name] = (mkts[r.country_name]||0) + r.productions; });
+  const top6 = Object.entries(mkts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(e=>e[0]);
+
+  const datasets = top6.map((mkt, i) => ({
+    label: mkt,
+    data: years.map(y => {
+      const r = annual.find(a=>a.country_name===mkt && a.year===y);
+      return r ? r.productions : null;
+    }),
+    borderColor: PALETTE[i],
+    backgroundColor: PALETTE[i] + "22",
+    tension: 0.3, pointRadius: 4, borderWidth: 2, fill: false,
+    spanGaps: true,
+  }));
+
+  const ctx = document.getElementById("chart-trend").getContext("2d");
+  charts["trend"] = new Chart(ctx, {
+    type: "line",
+    data: { labels: years, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position:"bottom", labels:{ boxWidth:10, font:{size:9}}}},
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:9}}},
+        y: { grid:{color:"#f0f2f5"}, ticks:{font:{size:9}}, title:{display:true,text:"Productions",font:{size:9}}}
+      }
+    }
+  });
+}
+
+// MARKET TABLE
+function updateMarketTable(markets) {
+  const sorted = [...markets].sort((a,b)=>b.total_spend-a.total_spend);
+  const maxSpend = sorted[0]?.total_spend || 1;
+  const tbody = document.getElementById("market-tbody");
+  tbody.innerHTML = sorted.map((m,i) => `
+    <tr>
+      <td><span class="rank-badge">${i+1}</span></td>
+      <td><b>${m.country_name}</b></td>
+      <td>${m.productions.toLocaleString()}</td>
+      <td>GBP ${m.total_spend.toFixed(0)}M</td>
+      <td>&#9733; ${m.avg_rating.toFixed(1)}</td>
+      <td><div class="bar-cell">
+        <div class="mini-bar" style="width:${Math.round(m.total_spend/maxSpend*80)}px"></div>
+      </div></td>
+    </tr>`).join("");
+}
+
+// SPEND BAR
+function updateSpend(markets) {
+  destroyChart("spend");
+  const sorted = [...markets].sort((a,b)=>b.total_spend-a.total_spend);
+  const ctx = document.getElementById("chart-spend").getContext("2d");
+  charts["spend"] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: sorted.map(m=>m.country_name),
+      datasets: [{
+        label: "Spend (GBP M)",
+        data: sorted.map(m=>m.total_spend.toFixed(1)),
+        backgroundColor: sorted.map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: true,
+      plugins: { legend:{display:false}},
+      scales: {
+        x: { grid:{color:"#f0f2f5"}, ticks:{font:{size:8}, callback:v=>"GBP"+v+"M"}},
+        y: { grid:{display:false}, ticks:{font:{size:8}}}
+      }
+    }
+  });
+}
+
+// GENRE BAR
+function updateGenre() {
+  destroyChart("genre");
+  const scored = RAW.genres.map(g => ({
+    genre: g.genre,
+    score: +(g.rating * Math.log(g.audience + 1)).toFixed(2),
+    rating: g.rating,
+    productions: g.productions,
+  })).sort((a,b)=>b.score-a.score);
+
+  const ctx = document.getElementById("chart-genre").getContext("2d");
+  charts["genre"] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: scored.map(g=>g.genre),
+      datasets: [{
+        label: "Performance Score",
+        data: scored.map(g=>g.score),
+        backgroundColor: PALETTE,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Score: ${c.raw} | Rating: ${scored[c.dataIndex].rating}`}}},
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:8}}},
+        y: { grid:{color:"#f0f2f5"}, ticks:{font:{size:8}}, title:{display:true,text:"Score",font:{size:9}}}
+      }
+    }
+  });
+}
+
+// SCATTER
+function updateScatter(markets) {
+  destroyChart("scatter");
+  const ctx = document.getElementById("chart-scatter").getContext("2d");
+  const maxP = Math.max(...markets.map(m=>m.productions));
+  charts["scatter"] = new Chart(ctx, {
+    type: "bubble",
+    data: {
+      datasets: markets.map((m,i)=>({
+        label: m.country_name,
+        data: [{ x: +m.total_spend.toFixed(1), y: +m.avg_rating.toFixed(2),
+                 r: Math.max(4, m.productions / maxP * 22) }],
+        backgroundColor: PALETTE[i%PALETTE.length] + "bb",
+        borderColor: PALETTE[i%PALETTE.length],
+        borderWidth: 1,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label} | Spend: GBP${c.raw.x}M | Rating: ${c.raw.y}`}}},
+      scales: {
+        x: { grid:{color:"#f0f2f5"}, ticks:{font:{size:8}, callback:v=>"GBP"+v+"M"},
+             title:{display:true,text:"Total Spend (GBP M)",font:{size:9}}},
+        y: { grid:{color:"#f0f2f5"}, ticks:{font:{size:8}},
+             title:{display:true,text:"Avg Rating",font:{size:9}}, min:5, max:10}
+      }
+    }
+  });
+}
+
+// ── BOOT ────────────────────────────────────────────────────────────────────
+initFilters();
+applyFilters();
+</script>
+</body>
+</html>
